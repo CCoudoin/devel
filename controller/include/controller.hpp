@@ -1,4 +1,5 @@
 //controller header
+// Command manipulates only the protobuf messages, these messages are then serialized as string in main .cpp and send thanks to sockets properties.
 #ifndef SOCKET_HPP
 #define SOCKET_HPP
 
@@ -34,7 +35,7 @@ class Command {
 
 	bool init_driver();
 	bool reset_driver();
-	std::std::vector<double> get_joint_position();
+	std::vector<double> get_joint_position();
 	void compute_jacobian();
 	void compute_error();
 	void send_joint_position(int joint_index, double delta);
