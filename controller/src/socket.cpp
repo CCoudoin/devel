@@ -9,8 +9,9 @@
 #include <iostream>
 #include <cstring>      // strerror
 #include <sys/socket.h>  // ::shutdown()
+#include <vector>
 
-Socket::Socket()
+Socket::Socket(SocketConfig config_)
 {
 	socket_fd_ = ::socket(config_.domain, config_.type, config_.protocol);
 	if(socket_fd_ < 0)
@@ -48,7 +49,7 @@ void Socket::bind()
 	local_addr.sin_family = config_.domain;
 	local_addr.sin_port = htons(config_.local_port); //SocketConfig.local_port est un int)
 
-    if(inet_pton(config_.domain, config_.local_address.c_str(), &local_adrr.sin_addr) <=0)
+    if(inet_pton(config_.domain, config_.local_address.c_str(), &local_addr.sin_addr) <=0)
     {
     	throw std::invalid_argument("invalid local IP adress : " + config_.local_address);
     }
@@ -70,12 +71,12 @@ void Socket::connect()
 	// This function is not completely necessary for an UDP connection as there is no need for "handshake" in UDP. However, doing this steps will allow us to
 	// use directly native send() and recv() native functions and not sendto() and receivfrom() that requires each time to pass destinations arguments
 	sockaddr_in dest_addr{};
-    dest.sin_family = config_.domain;
+    dest_addr.sin_family = config_.domain;
     dest_addr.sin_port = htons(config_.dest_port);
 
     if(inet_pton(config_.domain, config_.dest_address.c_str(), &dest_addr.sin_addr) <=0)
     {
-    	throw std::invalid_argument("invalid destination IP adress : " + config_.dest_addr);
+    	throw std::invalid_argument("invalid destination IP adress : " + config_.dest_address);
     }
 
     if(::connect(socket_fd_,reinterpret_cast<sockaddr*>(&dest_addr),sizeof(dest_addr)) <0)
@@ -98,12 +99,12 @@ ssize_t Socket::send(const std::string& msg) //ssize_t permet de renvoyer la tai
         throw std::runtime_error("Failed to send message : " + std::string(strerror(errno)));
     }
 
-    is_sent = true;
-    is_received = false;
+    is_sent_ = true;
+    is_received_ = false;
     return result;
 }
 
-ssize_t Socket::receive(std::string& msg, size_t max_length = 1024,int timeout_sec) //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
+ssize_t Socket::receive(std::string& msg, size_t max_length,int timeout_sec) //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
 {
 
 
@@ -128,8 +129,8 @@ ssize_t Socket::receive(std::string& msg, size_t max_length = 1024,int timeout_s
     }
         
 	msg.assign(buffer.data(),result);// convert the buffer into a std::string
-	is_sent = false;
-	is_received = true;
+	is_sent_ = false;
+	is_received_ = true;
 
 	return result;
 }
@@ -152,7 +153,7 @@ void Socket::close()
 	// internal states reset
 	is_connected_ = false;
 	is_bound_ = false;
-	is_sent = false;
-	is_received = false;
+	is_sent_ = false;
+	is_received_ = false;
 }
 

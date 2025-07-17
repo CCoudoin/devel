@@ -16,10 +16,32 @@ google::protobuf::Any asAny(google::protobuf::Message& msg)
     return any;
 }
 
-
-
-Command::Command()//constructor
+flr_api::v2::rtos::SystemState Command::receive_system_state(Socket& socket)
 {
+	// Created to avoid repeating this part of code in every other functions to receive state messages and parse it
+	// 1. Reception of protobuf message
+    std::string msg;
+    try {
+        socket.receive(msg, 1024, 2);
+
+    } catch(const std::exception& e) {
+
+        throw std::runtime_error("Reception failed: " + std::string(e.what()));
+    }
+
+    // 2. We deserialize the message in SystemState
+    flr_api::v2::rtos::SystemState sys_state_msg;
+    if (!sys_state_msg.ParseFromString(msg)) {
+        throw std::runtime_error("Failed to parse SystemState message.");
+    }
+
+    return sys_state_msg;
+}
+
+Command::Command()// constructor
+	:command_fd_(-1)
+{
+	//rien à faire ici; fd non initialisé, on ne s'en sert pas encore
 
 }
 	
@@ -48,7 +70,7 @@ bool Command::init_driver(Socket& socket)
     
 
 
-    is_initialized_driver = true;
+    is_initialized_driver_ = true;
     return true;
 }
 
@@ -64,36 +86,21 @@ bool Command::reset_driver(Socket& socket)
 
     } catch (const std::exception& e){
 
-    	throw st::runtime_error("failed during reset driver: " + std::string(e.what()));
+    	throw std::runtime_error("failed during reset driver: " + std::string(e.what()));
     };
 
-    is_reset_driver = true;
+    is_reset_driver_ = true;
     return true;
 }
 
-int Command::control_mode(Socket& socket; ControlMode mode)
+int Command::control_mode(Socket& socket, ControlMode mode)
 {	
-	// 1. Reception of protobuf message
-	std:string msg;
-	
-	try {
-		socket.receive(msg,1024,2);
+	const auto sys_state_msg = Command::receive_system_state(socket);
 
-	} catch(const std::exception& e) {
-
-		throw std::runtime_error("message reception failed during control mode selection : " + std::string(e.what()));
-	}
-
-	// 2. We deserialize the message in SystemState
-	flr_api::v2::rtos::SystemState sys_state_msg;
-	if(!sys_state_msg.ParseFromString(msg)){
-		throw std::runtime_error("Failed to parse SystemState message from received data");
-	}
-
-	// 3. Depending of the mode, we send the desired mode
+	// Depending of the mode, we send the desired mode
 	switch(mode)
 	{
-		case jogging:
+		case ControlMode::jogging:
 			if(sys_state_msg.rtos_state().robot_control_mode() != flr_api::v2::rtos::RTOSControlMode::RTOS_CONTROL_MODE_JOGGING)
 			{
 				flr_api::v2::rtos::RTOSControlModeCmd jog_mode_msg;
@@ -123,14 +130,46 @@ int Command::control_mode(Socket& socket; ControlMode mode)
 
 }
 
-std::vector<double> get_joint_position(Socket& socket)
+std::vector<double> Command::get_joint_position(Socket& socket)
 {
-	flr_api::v2::rtos::SystemState sys_state_msg;
-	socket.receive()
-	std::cout << "Joint Pose before = " << sys_state_msg.robot_state().joint_positions().ShortDebugString() << std::endl;
-}
+	const auto sys_state_msg = Command::receive_system_state(socket);
+	std::vector<double> joints_position;
 
-void Command::compute_jacobian()
+	// we acquire the current positions
+	const auto& current_joints_values = sys_state_msg.robot_state().joint_positions();
+	// We need to define the size of joints_positions if we don't want an error to occur
+	joints_position.resize(current_joints_values.value_size());
+
+	for(int i=0; i < current_joints_values.value_size();++i)
+        {
+            joints_position[i] = current_joints_values.value(i);
+        }
+
+	return joints_position;
+} 
+
+std::vector<double> Command::get_tool_position(Socket& socket)
+{
+	const auto sys_state_msg = Command::receive_system_state(socket);
+
+	const auto& pose = sys_state_msg.robot_state().tool_pose();
+
+	double x = pose.translation().x();
+	double y = pose.translation().y();
+	double z = pose.translation().z();
+	double qx = pose.rotation().qx();
+	double qy = pose.rotation().qy();
+	double qz = pose.rotation().qz();
+	double qw = pose.rotation().qw();
+
+	std::vector<double> tool_position = {x, y, z, qx, qy, qz, qw};
+
+	return tool_position;
+
+} 
+
+
+void Command::compute_jacobian(std::vector<double> joint_position)
 {
 
 }
@@ -144,4 +183,31 @@ void Command::compute_error()
 void Command::send_joint_position(int joint_index, double delta)
 {
 
+}
+
+void Command::send_tool_position()
+{
+
+}
+
+void Command::print_joint_position(Socket& socket) {
+    const auto positions = get_joint_position(socket);
+    std::cout << "Joint positions: ";
+    for (const auto& val : positions)
+        std::cout << val << " ";
+    std::cout << std::endl;
+}
+
+void Command::print_tool_position(Socket& socket) {
+    const auto pose = get_tool_position(socket);
+    std::cout << "Tool pose (x y z qx qy qz qw): ";
+    for (const auto& val : pose)
+        std::cout << val << " ";
+    std::cout << std::endl;
+}
+
+void Command::print_system_state(Socket& socket) {
+    // Used for debbuging by printing all the system state
+    const auto sys_state = receive_system_state(socket);
+    std::cout << sys_state.DebugString();  // Affiche tout
 }

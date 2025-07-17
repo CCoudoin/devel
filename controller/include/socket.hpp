@@ -20,16 +20,13 @@
  	int dest_port = 51218;
  	int timeout_sec = 2;
  	int timeout_usec = 0;
-}
+};
 
 class Socket
 {
 	public:
 
-		Socket();//constructor : Automatically called when an object is created
-
-		Socket();//init socket
-
+		Socket(SocketConfig config_);//constructor : Automatically called when an object is created
 		void bind();
 		void connect();
 		ssize_t send(const std::string& msg); //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
@@ -45,5 +42,5 @@ class Socket
 	bool is_bound_= false;
 	bool is_sent_=false;
 	bool is_received_=false;
-}
+};
 #endif

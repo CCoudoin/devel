@@ -1,13 +1,21 @@
 //controller header
 // Command manipulates only the protobuf messages, these messages are then serialized as string in main .cpp and send thanks to sockets properties.
-#ifndef SOCKET_HPP
-#define SOCKET_HPP
+#ifndef CONTROLLER_HPP
+#define CONTROLLER_HPP
+
+#include "socket.hpp"
 
 #include <string>
 #include <netinet/in.h> // sockaddr_in
 #include <sys/socket.h> // socket, bind, recvfrom
 #include <arpa/inet.h>  // inet_addr
 #include <unistd.h>     // close
+#include <vector>
+
+//librairies protobuf
+#include <google/protobuf/any.pb.h>
+#include <google/protobuf/message.h>
+#include <protos/api_v2_rtos.pb.h>
 
  struct RobotConfig {
  	public :
@@ -27,7 +35,8 @@
  	float max_velocity = 1000;// valeur par défaut présente dans le code de Fuzzy Logic
  	float max_acceleration = 5000;// valeur par défaut présente dans le code de Fuzzy Logic
  	float max_jerk = 10000;// valeur par défaut présente dans le code de Fuzzy Logic
-}
+};
+
 enum class ControlMode {
 		jogging = 1,
 		cartesian = 2,
@@ -39,17 +48,25 @@ class Command {
 
 	bool init_driver(Socket& socket);
 	bool reset_driver(Socket& socket);
-	int control_mode(Socket& socket; ControlMode mode); //jog mode dans exemple Fuzzy mais on pourrait imaginer d'autres modes
+	int control_mode(Socket& socket, ControlMode mode); //jog mode dans exemple Fuzzy mais on pourrait imaginer d'autres modes
 	std::vector<double> get_joint_position(Socket& socket);
-	void compute_jacobian();
-	void compute_error();
+	std::vector<double> get_tool_position(Socket& socket);
 	void send_joint_position(int joint_index, double delta);
+	void send_tool_position();
+	void print_joint_position(Socket& socket);
+	void print_tool_position(Socket& socket);
+	void print_system_state(Socket& socket);
 
 	private :
 	int command_fd_;
 	RobotConfig robot_;
-	ControlMode selected_mode_ = control_mode::jogging;//Default value is jogging, it could be changed in the future if we want to set up other modes
+	ControlMode selected_mode_ = ControlMode::jogging;//Default value is jogging, it could be changed in the future if we want to set up other modes
+	flr_api::v2::rtos::SystemState receive_system_state(Socket& socket);
+	void compute_jacobian(std::vector<double> joint_position);
+	void compute_error();
+	bool is_initialized_driver_=false;
+	bool is_reset_driver_=false;
 
-}
+};
 
 #endif
