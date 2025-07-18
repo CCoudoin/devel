@@ -42,6 +42,14 @@ enum class ControlMode {
 		cartesian = 2,
 	};
 
+enum class Direction {
+
+	//none = 0,
+	x = 1,
+	y = 2,
+	z = 3,
+};
+
 class Command {
 	public :
 	Command();//constructor : Automatically called when an object is created
@@ -52,7 +60,7 @@ class Command {
 	std::vector<double> get_joint_position(Socket& socket);
 	std::vector<double> get_tool_position(Socket& socket);
 	void send_joint_position(int joint_index, double delta);
-	void send_tool_position();
+	bool send_tool_position(Direction direction, Socket& socket,double delta);
 	void print_joint_position(Socket& socket);
 	void print_tool_position(Socket& socket);
 	void print_system_state(Socket& socket);
@@ -61,7 +69,9 @@ class Command {
 	int command_fd_;
 	RobotConfig robot_;
 	ControlMode selected_mode_ = ControlMode::jogging;//Default value is jogging, it could be changed in the future if we want to set up other modes
+	//Direction direction_ = Direction::none; 
 	flr_api::v2::rtos::SystemState receive_system_state(Socket& socket);
+	void send_cartesian_pose(flr_api::v2::rtos::CartesianPoseJoggingCmd& jog_cmd_msg,Socket& socket);
 	void compute_jacobian(std::vector<double> joint_position);
 	void compute_error();
 	bool is_initialized_driver_=false;

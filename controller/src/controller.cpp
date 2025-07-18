@@ -38,6 +38,20 @@ flr_api::v2::rtos::SystemState Command::receive_system_state(Socket& socket)
     return sys_state_msg;
 }
 
+void Command::send_cartesian_pose(flr_api::v2::rtos::CartesianPoseJoggingCmd& jog_cmd_msg,Socket& socket)
+{
+	// Created to avoid repeating this part of code in every other functions to send cartesian pose message and parse it
+	const auto payload = asAny(jog_cmd_msg).SerializeAsString();
+
+	try {
+		socket.send(payload);
+
+	} catch (const std::exception& e){
+
+		throw std::runtime_error("failed to send the command : " + std::string(e.what()));
+	}
+}
+
 Command::Command()// constructor
 	:command_fd_(-1)
 {
@@ -185,8 +199,83 @@ void Command::send_joint_position(int joint_index, double delta)
 
 }
 
-void Command::send_tool_position()
+bool Command::send_tool_position(Direction direction,Socket& socket,double delta) // Delta can be positive or negative; for now juste translations
 {
+	// This function will send a protobuf message to move the robot in the asked direction and for the delta range.
+	// It's a relative movement not an absolute one so we take as a first step the actual position of the tool.
+	// /!\ be careful as we still haven't feagured out why an offset is observed on the Z axis.
+	// To compare theoretical mouvements and real mouvments measured by sensor, we want to be able to keep trace of the asked position
+
+    
+	if (selected_mode_== ControlMode::jogging)
+	{
+		// 1. Current positions
+	    const auto positions = get_tool_position(socket);
+	    double current_x = positions[0];
+	    double current_y = positions[1];
+	    double current_z = positions[2];
+	    double current_qx = positions[3];
+	    double current_qy = positions[4];
+	    double current_qz = positions[5];
+	    double current_qw = positions[6];
+
+
+	    // 2. Variable used to created a protobuf message to move the robot
+	    flr_api::v2::rtos::CartesianPoseJoggingCmd jog_cmd_msg;
+	    
+	    auto* desired_pose = jog_cmd_msg.mutable_desired_pose();
+
+	    // 3. switch depending on wanted direction
+	    switch(direction)
+	    {
+	    case Direction::x:{
+
+	    	auto* translation = desired_pose->mutable_translation();
+	    	translation->set_x(current_x + delta);
+	    	translation->set_y(current_y);
+	    	translation->set_z(current_z);
+	   		break;
+
+	    }
+
+
+	    case Direction::y:{
+
+	    	auto* translation = desired_pose->mutable_translation();
+	    	translation->set_x(current_x);
+	    	translation->set_y(current_y + delta);
+	    	translation->set_z(current_z);
+	   		break;
+
+	    }
+
+	    case Direction::z:{
+
+	    	auto* translation = desired_pose->mutable_translation();
+	    	translation->set_x(current_x);
+	    	translation->set_y(current_y);
+	    	translation->set_z(current_z + delta);
+	   		break;
+	    }
+
+	   	default :
+	   		throw std::invalid_argument("Unsupported direction selected");
+
+	    }
+    	
+    	auto* rotation = desired_pose->mutable_rotation();
+    	rotation->set_qx(current_qx);
+    	rotation->set_qy(current_qy);
+    	rotation->set_qz(current_qz);
+   		rotation->set_qw(current_qw);
+
+	    send_cartesian_pose(jog_cmd_msg,socket);
+	} else
+	{
+		throw std::runtime_error("mouvement not allowed with selected control mode");
+	}
+    
+    return true;
 
 }
 
