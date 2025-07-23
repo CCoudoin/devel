@@ -38,15 +38,18 @@ double sinusoid_movement (double amplitude_max, float t_elapsed)
 		// 0.05 en radian -> (delta*180)/Pi pour avoir en degré soit ici environ 3°
 		// 0.005 en m -> 5mm
 
-        double frequence_sin = 0.2; //frequence en Hz du signal pour le mouvement
-        double omega = 2 * M_PI * frequence_sin;
-        double sin_delta = amplitude_max * sin(omega*t_elapsed); //delta en radian que l'on va appliquer au joint de l'index précédent. (delta*180)/Pi pour avoir en degré
+        const double frequency_hz = 0.2; //frequence en Hz du signal pour le mouvement
+        const double omega = 2 * M_PI * frequency_hz;
+        const double t_sec = t_elapsed / 1000.0;
         
-        return sin_delta;
+        return amplitude_max * std::sin(omega*t_sec);
 }
 
 int main()
 {
+	
+	// To interupt with CTRL+C
+	signal(SIGINT, sigHandler);
 	// log file
 	std::ofstream logfile("cmd_trajectory.csv");
 	logfile << "time,dz"<<std::endl;
@@ -70,62 +73,66 @@ int main()
 			cmd.init_driver(sock);
 			cmd.control_mode(sock,ControlMode::jogging);
 	} catch (const std::exception& e){
-		std::cerr << "main : command preparatin failed : " << e.what() << std::endl;
+		std::cerr << "main : command preparation failed : " << e.what() << std::endl;
 	}
 
-
-	clock_t before = clock();
+	auto total_running_time = std::chrono::steady_clock::now();
 	while(keep_running)
 	{
-		try {
-
+		auto loop_start = std::chrono::steady_clock::now();
+		/*try {
 
 			std::cout << "========tool position (before)=========" << std::endl;
 			cmd.print_tool_position(sock);
+		} catch (const std::exception& e){
+				std::cerr << "printing of tool position before command failed : " << e.what() << std::endl;
+		}*/
 
-			// displacement of 5mm
-			// double dz=-0.005;
-			//===parameters for the sinusoidal mouvement===
-			double amplitude_max = 0.005;
-			clock_t t_elapsed = clock()-before;
+		//===parameters for the sinusoidal mouvement===
+		double amplitude_max = 0.005; // displacement of 5mm
+		auto command_time = std::chrono::steady_clock::now();
+		auto t_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(command_time - total_running_time).count();
 			// ============================================
+
+		try {
 
 			double dz = sinusoid_movement(amplitude_max,t_elapsed);
 			logfile << t_elapsed << "," << dz << std::endl;
 			cmd.send_tool_position(Direction::z,sock,dz);
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-			std::cout << "========tool position (after)=========" << std::endl;
-			cmd.print_tool_position(sock);
-			cmd.print_system_state(sock);
-			
-			// programm execution duration
-			//clock_t duration = clock()-before;
-			std::cout << "Duration : " << (float)t_elapsed / CLOCKS_PER_SEC << " seconds";
-
-			
 
 		} catch (const std::exception& e){
-				std::cerr << "command failed : " << e.what() << std::endl;
+				std::cerr << "sending of tool position failed : " << e.what() << std::endl;
+		}
+		
+		/*try {
+			std::cout << "========tool position (after)=========" << std::endl;
+			cmd.print_tool_position(sock);
+		} catch (const std::exception& e){
+				std::cerr << "printing of tool position after command failed : " << e.what() << std::endl;
+		}*/
+
+
+		// programm execution duration
+		auto loop_end = std::chrono::steady_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(loop_end - loop_start);
+		if (duration.count() < 4)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(4 - duration.count()));// We want 250Hz which is 4ms
+		} else
+		{
+			std::cout << "WARNING: loop higher than expected duration!" << std::endl;
 		}
 
+		std::cout << "Duration : " << duration.count() << " milliseconds" << std::endl;
+
 	}
-	// juste pour tester si fonctionne en dehors de boucle while
-	cmd.print_tool_position(sock);
-	cmd.print_system_state(sock);
-	//-------
-	cmd.reset_driver(sock);
-	sock.close();
 
-
-	//while(keep_running)
-	//{
-		// prise du temps pour calcul de la fréquence de réponse
-		//cmd.get_joint_position(); //On regarde la position actuelle
-		// cmd.compute_error(); On regarde l'erreur avec la consigne
-		// cmd.compute_jacobian(); // On calcul la jacobienne pour corriger l'erreur
-		// cmd.send_joint_position(); // On demande de nouvelles positions aux joints
-	//}
+	try {
+		cmd.reset_driver(sock);
+		sock.close();
+	} catch (const std::exception& e){
+			std::cerr << "ending of the programm failed : " << e.what() << std::endl;
+	}
 		
 
 }
