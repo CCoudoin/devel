@@ -68,7 +68,7 @@ bool Command::init_driver(Socket& socket)
     rtos_init_cmd.set_robot_controller_model(robot_.controller_model);
     // rtos_init_cmd.set_local_address("192.168.10.42"); ça je sais pas si je laisse ça ou si "0.0.0.0". Mis en commentaire selon exemple n°2 de Fuzzy
     // rtos_init_cmd.set_robot_address("192.168.10.254"); Mis en commentaire selon exemple n°2 de Fuzzy
-    std::cout << "init driver\n";
+    // std::cout << "init driver\n";
     const auto payload = asAny(rtos_init_cmd).SerializeAsString();
     
     // encapsulation of error messages, we catch the error mesage defined in socket.cpp functions and add precisions
@@ -91,7 +91,7 @@ bool Command::init_driver(Socket& socket)
 bool Command::reset_driver(Socket& socket)
 {
 	flr_api::v2::rtos::RTOSDriverInitializationCmd rtos_init_cmd;
-    std::cout << "Resetting driver\n";
+    // std::cout << "Resetting driver\n";
     const auto payload = asAny(rtos_init_cmd).SerializeAsString();
     
     try {

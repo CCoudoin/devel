@@ -43,9 +43,8 @@ double sinusoid_movement (double amplitude_max, float t_elapsed)
 
         const double frequency_hz = 0.2; //frequence en Hz du signal pour le mouvement
         const double omega = 2 * M_PI * frequency_hz;
-        const double t_sec = t_elapsed / 1000.0;
         
-        return amplitude_max * std::sin(omega*t_sec);
+        return amplitude_max * std::sin(omega*t_elapsed);
 }
 
 double up_down_movements (double amplitude_max, int iterations)
@@ -102,7 +101,7 @@ int main()
 		sock.connect();
 	} catch (const std::exception& e){
 		// std::cerr << "Failed to connect: " << e.what() << std::endl;
-		error_log.push_back({get_current_time(), "[ERROR] Failed to connect: " + std::string(e.what())});
+		error_log.push_back({get_current_time()-start_time, "[ERROR] Failed to connect: " + std::string(e.what())});
 	} 
 	
 	// Command of the robot
@@ -116,11 +115,11 @@ int main()
 			cmd.control_mode(sock,ControlMode::jogging);
 	} catch (const std::exception& e){
 		//std::cerr << "main : command preparation failed : " << e.what() << std::endl;
-		error_log.push_back({get_current_time(),"[ERROR] Failed command preparation: " + std::string(e.what())});
+		error_log.push_back({get_current_time()-start_time,"[ERROR] Failed command preparation: " + std::string(e.what())});
 	}
 	while(keep_running)
 	{
-		auto loop_start = std::chrono::steady_clock::now();
+		double loop_start = get_current_time();
 		/*try {
 
 			std::cout << "========tool position (before)=========" << std::endl;
@@ -140,13 +139,14 @@ int main()
 			double delta = sinusoid_movement(amplitude_max,t_elapsed);
 
 			// logfile << t_elapsed << "," << dz << std::endl;
-			data_log.push_back({get_current_time(),delta});
+			data_log.push_back({get_current_time()-start_time,delta});
 
 			cmd.send_tool_position(Direction::z,sock,delta);
+			error_log.push_back({get_current_time()-start_time,"[INFO] toop position sent successfully"});
 
 		} catch (const std::exception& e){
 				// std::cerr << "sending of tool position failed : " << e.what() << std::endl;
-				error_log.push_back({get_current_time(),"[ERROR] Tool position sending failed : " + std::string(e.what())});
+				error_log.push_back({get_current_time()-start_time,"[ERROR] Tool position sending failed : " + std::string(e.what())});
 		}
 
 		/* A voir comment je gère le sleep dans ce cas.. A creuser
@@ -170,15 +170,16 @@ int main()
 
 
 		// programm execution duration
-		auto loop_end = std::chrono::steady_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(loop_end - loop_start);
-		if (duration.count() < 4)
+		double loop_end = get_current_time();
+		auto duration = loop_end - loop_start;
+		if (duration < 0.004)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(4 - duration.count()));// We want 250Hz which is 4ms
+			double remaining_time = 0.004 - duration;
+			std::this_thread::sleep_for(std::chrono::duration<double>(remaining_time));// We want 250Hz which is 4ms
 		} else
 		{
 			// std::cout << "WARNING: loop higher than expected duration!" << std::endl;
-			error_log.push_back({get_current_time(),"[WARNING] loop duration higher than expected duration!"});
+			error_log.push_back({get_current_time()-start_time,"[WARNING] loop duration higher than expected duration!"});
 		}
 
 	}
@@ -189,14 +190,14 @@ int main()
 		sock.close();
 	} catch (const std::exception& e){
 			// std::cerr << "ending of the programm failed : " << e.what() << std::endl;
-			error_log.push_back({get_current_time(),e.what()});
+			error_log.push_back({get_current_time()-start_time,e.what()});
 	}
 
 	// log file data
 	std::ofstream logfile("cmd_trajectory.csv");
-	for (const auto& e : error_log)
+	for (const auto& e : data_log)
 	{
-		logfile << "[" << e.timestamp << "s] " << e.message << "\n";
+		logfile  << e.timestamp << e.delta << "\n";
 	}
 
 
