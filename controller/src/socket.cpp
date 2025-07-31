@@ -104,13 +104,11 @@ ssize_t Socket::send(const std::string& msg) //ssize_t permet de renvoyer la tai
     return result;
 }
 
-ssize_t Socket::receive(std::string& msg, size_t max_length,int timeout_sec) //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
+ssize_t Socket::receive(std::string& msg, size_t max_length, int timeout_sec) //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
 {
 
-
-     std::vector<char> buffer(max_length,0);  // temporary buffer for message reception
     // The recv() function shall return the length of the message written to the buffer pointed to by the buffer argument.
-	ssize_t result= ::recv(socket_fd_,buffer.data(),buffer.size(),0);
+	ssize_t result= ::recv(socket_fd_, msg.data(), msg.size(),0);
     if(result<0)
     {
     	if(errno == EWOULDBLOCK || errno == EAGAIN)
@@ -124,11 +122,12 @@ ssize_t Socket::receive(std::string& msg, size_t max_length,int timeout_sec) //s
     	{
     		throw std::runtime_error("Receive failed: " + std::string(strerror(errno)));
     	}
-
-
+    }
+	else if (result == 0) 
+	{
+  		throw std::runtime_error("Receive zero bytes");
     }
         
-	msg.assign(buffer.data(),result);// convert the buffer into a std::string
 	is_sent_ = false;
 	is_received_ = true;
 

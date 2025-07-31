@@ -17,7 +17,14 @@
 #include <google/protobuf/message.h>
 #include <protos/api_v2_rtos.pb.h>
 
- struct RobotConfig {
+//#define DEBUG 1
+//#ifdef DEBUG
+// code here
+//#endif
+
+#define PERIOD (1/250)
+
+struct RobotConfig {
  	public :
  	std::string brand = "Staubli";
  	std::string model = "TX2-60L";

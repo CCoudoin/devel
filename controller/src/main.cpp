@@ -29,6 +29,7 @@ void sigHandler(int /* sig */)
 {
     // This function is to be able to exit the while loop by pressing CTRL+C
     keep_running = false;
+	std::cout << "signal recu" << std::endl;
 }
 
 double sinusoid_movement (double amplitude_max, float t_elapsed)
@@ -172,9 +173,9 @@ int main()
 		// programm execution duration
 		double loop_end = get_current_time();
 		auto duration = loop_end - loop_start;
-		if (duration < 0.004)
+		if (duration < PERIOD)
 		{
-			double remaining_time = 0.004 - duration;
+			double remaining_time = PERIOD - duration;
 			std::this_thread::sleep_for(std::chrono::duration<double>(remaining_time));// We want 250Hz which is 4ms
 		} else
 		{

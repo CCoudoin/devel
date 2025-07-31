@@ -21,8 +21,9 @@ flr_api::v2::rtos::SystemState Command::receive_system_state(Socket& socket)
 	// Created to avoid repeating this part of code in every other functions to receive state messages and parse it
 	// 1. Reception of protobuf message
     std::string msg;
+	msg.reserve(SYSTEM_STATE_MAX_LENGTH);
     try {
-        socket.receive(msg, 1024, 2);
+        socket.receive(msg, SYSTEM_STATE_MAX_LENGTH, 2);
 
     } catch(const std::exception& e) {
 
@@ -32,8 +33,10 @@ flr_api::v2::rtos::SystemState Command::receive_system_state(Socket& socket)
     // 2. We deserialize the message in SystemState
     flr_api::v2::rtos::SystemState sys_state_msg;
     if (!sys_state_msg.ParseFromString(msg)) {
-        throw std::runtime_error("Failed to parse SystemState message.");
-    }
+        throw std::runtime_error("Failed to parse SystemState message of size" + msg.length());
+    } else {
+		std::cout << "parsed size success " << msg.length() << std::endl;
+	}
 
     return sys_state_msg;
 }

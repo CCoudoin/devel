@@ -9,6 +9,7 @@
 #include <arpa/inet.h>  // inet_addr
 #include <unistd.h>     // close
 
+#define SYSTEM_STATE_MAX_LENGTH 1024
 
  struct SocketConfig {
  	int domain = AF_INET;
@@ -30,7 +31,7 @@ class Socket
 		void bind();
 		void connect();
 		ssize_t send(const std::string& msg); //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
-		ssize_t receive(std::string& msg, size_t max_length = 1024,int timeout_sec=2); //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
+		ssize_t receive(std::string& msg, size_t max_length = SYSTEM_STATE_MAX_LENGTH,int timeout_sec=2); //ssize_t permet de renvoyer la taille du message ou -1 pour savoir si il y a une erreur
 		void close();
 
 	private :
