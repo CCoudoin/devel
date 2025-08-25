@@ -7,11 +7,11 @@ A second folder is dedicated to feedback force and moments data.(This part will 
 To try the programm :
 1. Clone the repository
 git clone https://github.com/CCoudoin/devel.git
-cd /devel/controller
+cd devel/controller
 
 2. Build the project with Cmake
 - mkdir build
-- cd /build
+- cd build
 - cmake ..
 - cmake --build .
 
